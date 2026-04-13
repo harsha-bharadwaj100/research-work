@@ -1,43 +1,43 @@
-import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.stats import entropy
+from PIL import Image
+import os
 
-# 1. Simulate the Siamese output for Simple vs Complex matches
-# In a real run, you would use: distance = model.predict([img1, img2])
-simple_match_dist = 0.05  # Digit '1' vs Digit '1'
-complex_match_dist = 0.35  # Digit '8' vs Digit '8'
+# Load your existing model
+# model = tf.keras.models.load_model("siamese_mnist_model.keras", compile=False)
 
 
 def get_entropy(img):
-    hist, _ = np.histogram(img, bins=256, range=(0, 1))
-    return entropy(hist / hist.sum(), base=2)
+    # Standard Shannon Entropy calculation for pixel distribution
+    hist, _ = np.histogram(img.ravel(), bins=256, range=(0, 1))
+    prob_dist = hist / hist.sum()
+    return entropy(prob_dist[prob_dist > 0], base=2)
 
 
-# 2. Visualize the Threshold Problem
-def visualize_threshold_need(img_simple, img_complex):
-    ent_s = get_entropy(img_simple)
-    ent_c = get_entropy(img_complex)
-
-    # Logic: Lower entropy needs a tighter (smaller) threshold to avoid false matches
-    # Higher entropy needs a wider (larger) threshold to allow for natural variance
-    suggested_threshold_s = 0.1 * ent_s  # Hypothetical adaptive logic
-    suggested_threshold_c = 0.1 * ent_c
-
-    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
-
-    ax[0].imshow(img_simple.squeeze(), cmap="gray")
-    ax[0].set_title(
-        f"Simple (Entropy: {ent_s:.2f})\nMeasured Dist: {simple_match_dist}\nSuggested Max Threshold: {suggested_threshold_s:.2f}"
-    )
-
-    ax[1].imshow(img_complex.squeeze(), cmap="gray")
-    ax[1].set_title(
-        f"Complex (Entropy: {ent_c:.2f})\nMeasured Dist: {complex_match_dist}\nSuggested Max Threshold: {suggested_threshold_c:.2f}"
-    )
-
-    plt.show()
+def load_and_preprocess(path):
+    img = Image.open(path).convert("L")  # grayscale
+    img = img.resize((28, 28))
+    img = np.array(img) / 255.0
+    return img.reshape(28, 28, 1)
 
 
-# Example: Use a '1' and an '8' from your dataset
-# visualize_threshold_need(test_images[index_of_1], test_images[index_of_8])
+# Load images
+img1_simple = load_and_preprocess(os.path.join("..", "test_images", "img1_simple.png"))
+img2_simple = load_and_preprocess(os.path.join("..", "test_images", "img2_simple.png"))
+img1_complex = load_and_preprocess(
+    os.path.join("..", "test_images", "img1_complex.jpg")
+)
+img2_complex = load_and_preprocess(
+    os.path.join("..", "test_images", "img2_complex.jpg")
+)
+
+# Get Model Distances
+# dist_simple = model.predict([img1_simple, img2_simple])[0][0]
+# dist_complex = model.predict([img1_complex, img2_complex])[0][0]
+
+# Calculate Entropies
+ent_s = get_entropy(img1_simple)
+ent_c = get_entropy(img1_complex)
+
+print(f"Simple Pair (1s): Entropy {ent_s:.2f}")
+print(f"Complex Pair (8s): Entropy {ent_c:.2f}")
