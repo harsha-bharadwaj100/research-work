@@ -1,17 +1,4 @@
 
-build/
-dist/
-wheels/
-.venv
-.env
-__pycache__/
-*.py[oc]
-*.egg-info
-
-bnmit-typst-report-template/
-*.pdf
-
-// additions
 # Python
 .venv/
 venv/
@@ -31,8 +18,6 @@ htmlcov/
 # Node / Frontend
 node_modules/
 frontend/node_modules/
-dist/
-.DS_Store
 *.local
 
 # Vite / Build outputs
@@ -55,11 +40,10 @@ frontend/dist/
 Thumbs.db
 desktop.ini
 
-# Large model files (optional - if deploying separately)
+# Large model files (keep .pkl for deployment - trained classifiers needed)
 *.keras
 *.pth
 *.h5
-*.pkl
 
 # Data / Testing
 test_imgs/
@@ -69,4 +53,4 @@ results.txt
 AI_img_testing/
 slide 1.png
 GlassEngine.pptx
-evaluate_model.py
+*.pdf
