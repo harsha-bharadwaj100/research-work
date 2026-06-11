@@ -5,9 +5,9 @@
 [![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react)](https://reactjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**GlassEngine** is a high-fidelity forensic verification system designed to detect AI-generated media (deepfakes) by triangulating physical, mathematical, and neural evidence. Unlike standard detectors that rely on simple CNNs, GlassEngine analyzes the "Digital DNA" of images—mapping hardware physics constraints and latent mathematical artifacts that generative AI cannot yet replicate.
+**GlassEngine** is a high-fidelity forensic verification system designed to detect AI-generated media (deepfakes) by triangulating physical, mathematical, and neural evidence. Unlike standard detectors that rely on simple CNNs, GlassEngine analyzes the "Digital DNA" of images—mapping hardware physics constraints and latent mathematical artifacts that generative AI cannot yet replicate. 
 
----
+-----------------------------
 
 ## 🛡️ The 5 Forensic Pillars (Evidence Dashboard)
 
