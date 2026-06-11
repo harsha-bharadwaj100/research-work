@@ -269,7 +269,7 @@ function App() {
                                <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.ratio.toFixed(2)}</td>
                              </tr>
                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                               <td style={{ padding: '8px', opacity: 0.8 }}>Rényi Entropy</td>
+                               <td style={{ padding: '8px', opacity: 0.8 }}>RÃ©nyi Entropy</td>
                                <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.entropy.toFixed(3)}</td>
                              </tr>
                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
