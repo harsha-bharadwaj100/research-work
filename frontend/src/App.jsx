@@ -13,6 +13,48 @@ function App() {
   const [result, setResult] = useState(null);
   const reportRef = React.useRef(null);
 
+
+  const [activeMode, setActiveMode] = useState('single');
+  const [imageA, setImageA] = useState(null);
+  const [previewA, setPreviewA] = useState(null);
+  const [imageB, setImageB] = useState(null);
+  const [previewB, setPreviewB] = useState(null);
+  const [dualResult, setDualResult] = useState(null);
+
+  const onDropA = useCallback((acceptedFiles) => {
+    setImageA(acceptedFiles[0]);
+    setPreviewA(URL.createObjectURL(acceptedFiles[0]));
+    setDualResult(null);
+  }, []);
+
+  const onDropB = useCallback((acceptedFiles) => {
+    setImageB(acceptedFiles[0]);
+    setPreviewB(URL.createObjectURL(acceptedFiles[0]));
+    setDualResult(null);
+  }, []);
+
+  const { getRootProps: getRootPropsA, getInputProps: getInputPropsA } = useDropzone({ onDrop: onDropA, accept: 'image/*' });
+  const { getRootProps: getRootPropsB, getInputProps: getInputPropsB } = useDropzone({ onDrop: onDropB, accept: 'image/*' });
+
+  const runDualAnalysis = async () => {
+    if (!imageA || !imageB) return;
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('image1', imageA);
+    formData.append('image2', imageB);
+
+    try {
+      const response = await axios.post('http://localhost:8000/compare', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setDualResult(response.data);
+    } catch (error) {
+      console.error("Error", error);
+      alert("Failed to connect to backend");
+    }
+    setLoading(false);
+  };
+
   const onDrop = useCallback((acceptedFiles) => {
     setImage(acceptedFiles[0]);
     setPreview(URL.createObjectURL(acceptedFiles[0]));
@@ -162,10 +204,105 @@ function App() {
       <div className="app-container">
         <header className="header">
           <h1>PROJECT GLASSENGINE</h1>
-          <p>Single-Image Proof of Authenticity</p>
+          <p>Single & Dual Image Analysis</p>
+          <div style={{display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '20px'}}>
+             <button onClick={() => setActiveMode('single')} style={{padding: '10px 20px', background: activeMode === 'single' ? 'var(--neon-blue)' : 'transparent', border: '1px solid var(--neon-blue)', color: 'white', borderRadius: '5px', cursor: 'pointer', transition: 'all 0.3s'}}>1. Single Neural Audit (Live)</button>
+             <button onClick={() => setActiveMode('dual')} style={{padding: '10px 20px', background: activeMode === 'dual' ? 'var(--neon-green)' : 'transparent', border: '1px solid var(--neon-green)', color: 'white', borderRadius: '5px', cursor: 'pointer', transition: 'all 0.3s'}}>2. Dual Math Comparison (Original)</button>
+          </div>
         </header>
 
-        {!result && !loading ? (
+        
+
+        {activeMode === 'dual' ? (
+           !dualResult && !loading ? (
+             <main className="upload-section">
+                <div style={{display: 'flex', gap: '40px', justifyContent: 'center', flexWrap: 'wrap'}}>
+                  <div className="dropzone-wrapper" style={{width: '400px'}}>
+                    <h3 style={{textAlign: 'center', marginBottom: '10px', color: 'var(--neon-blue)'}}>Suspect Image 1</h3>
+                    <div {...getRootPropsA()} className={`dropzone ${previewA ? 'has-image' : ''}`} style={{ height: '300px' }}>
+                      <input {...getInputPropsA()} />
+                      {previewA ? <img src={previewA} className="preview-img" style={{ objectFit: 'contain' }} /> : <div className="dropzone-placeholder"><FileSearch size={48} /><p>Drop Image 1 Here</p></div>}
+                    </div>
+                  </div>
+                  <div className="dropzone-wrapper" style={{width: '400px'}}>
+                    <h3 style={{textAlign: 'center', marginBottom: '10px', color: 'var(--neon-blue)'}}>Suspect Image 2</h3>
+                    <div {...getRootPropsB()} className={`dropzone ${previewB ? 'has-image' : ''}`} style={{ height: '300px' }}>
+                      <input {...getInputPropsB()} />
+                      {previewB ? <img src={previewB} className="preview-img" style={{ objectFit: 'contain' }} /> : <div className="dropzone-placeholder"><FileSearch size={48} /><p>Drop Image 2 Here</p></div>}
+                    </div>
+                  </div>
+                </div>
+                {previewA && previewB && (
+                  <div className="btn-container" style={{marginTop: '30px'}}>
+                    <button className="analyze-btn" style={{background: 'var(--neon-green)'}} onClick={runDualAnalysis}>
+                       <Zap size={28} /> INITIATE PURE MATH COMPARISON
+                    </button>
+                  </div>
+                )}
+             </main>
+           ) : loading ? (
+             <main className="upload-section">
+                <div className="btn-container" style={{ marginTop: '10vh' }}>
+                  <button className="analyze-btn"><Loader2 className="spinner" size={36} /> CALCULATING PURE MATH METRICS...</button>
+                </div>
+             </main>
+           ) : (
+             <main className="results-section">
+                <div className="verdict-banner" style={{ borderColor: 'var(--neon-green)' }}>
+                  <h2 style={{color: 'var(--neon-green)'}}><ShieldCheck size={40} style={{verticalAlign: 'bottom'}} /> {dualResult.overall_verdict}</h2>
+                </div>
+                
+                <div style={{display: 'flex', gap: '30px', marginTop: '40px', flexWrap: 'wrap', alignItems: 'flex-start'}}>
+                  {[dualResult.image1, dualResult.image2].map((res, idx) => (
+                    <div key={idx} style={{flex: 1, minWidth: '400px', background: 'rgba(255,255,255,0.03)', padding: '30px', borderRadius: '15px', border: `2px solid ${res.verdict.includes('Authentic') ? 'var(--neon-green)' : 'var(--neon-red)'}`}}>
+                       <h3 style={{textAlign: 'center', fontSize: '1.5rem', color: res.verdict.includes('Authentic') ? 'var(--neon-green)' : 'var(--neon-red)'}}>
+                          Image {idx+1}: {res.verdict}
+                       </h3>
+                       <p style={{fontSize: '0.9rem', opacity: 0.8, textAlign: 'center', marginTop: '10px'}}>{res.explanation}</p>
+                       <img src={idx === 0 ? previewA : previewB} style={{width: '100%', height: '250px', objectFit: 'contain', margin: '20px 0', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)'}} />
+                       
+                       <div className="comparison-table-container" style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
+                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                           <tbody>
+                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                               <td style={{ padding: '8px', opacity: 0.8 }}>ICPC PMR</td>
+                               <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.ratio.toFixed(2)}</td>
+                             </tr>
+                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                               <td style={{ padding: '8px', opacity: 0.8 }}>Rényi Entropy</td>
+                               <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.entropy.toFixed(3)}</td>
+                             </tr>
+                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                               <td style={{ padding: '8px', opacity: 0.8 }}>Noise Var.</td>
+                               <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.noise_variance.toFixed(2)}</td>
+                             </tr>
+                             <tr>
+                               <td style={{ padding: '8px', opacity: 0.8 }}>ELA Score</td>
+                               <td style={{ padding: '8px', fontWeight: 'bold' }}>{res.ela_score.toFixed(2)}</td>
+                             </tr>
+                           </tbody>
+                         </table>
+                       </div>
+
+                       <div style={{marginTop: '20px'}}>
+                         <p style={{fontSize: '0.85rem', color: 'var(--neon-purple)', marginBottom: '5px'}}><ShieldCheck size={14}/> HF-ICPC Sync</p>
+                         <img src={res.icpc_graph} style={{width: '100%', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)'}} />
+                       </div>
+                       <div style={{marginTop: '20px'}}>
+                         <p style={{fontSize: '0.85rem', color: 'var(--neon-purple)', marginBottom: '5px'}}><Eye size={14}/> Chaos Map</p>
+                         <img src={res.entropy_map} style={{width: '100%', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)'}} />
+                       </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="btn-container" style={{marginTop: '40px'}}>
+                   <button className="reset-btn" onClick={() => {setDualResult(null); setImageA(null); setImageB(null); setPreviewA(null); setPreviewB(null);}}>Audit New Pair</button>
+                </div>
+             </main>
+           )
+        ) : (
+
+          !result && !loading ? (
           <main className="upload-section">
             <div className="upload-panels" style={{ flexDirection: 'column', alignItems: 'center' }}>
               <div className="dropzone-wrapper" style={{ width: '100%', maxWidth: '600px' }}>
@@ -329,6 +466,7 @@ function App() {
               </div>
             </div>
           </main>
+        )
         )}
       </div>
     </>

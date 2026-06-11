@@ -15,10 +15,19 @@ def calculate_icpc(image):
     # Split channels
     b, g, r = cv2.split(image)
     
+    # NOVELTY: High-Frequency Enhanced ICPC (HF-ICPC)
+    # We apply a subtle Unsharp Masking technique before phase extraction. 
+    # By emphasizing the high-spatial frequencies, we force the Inter-Channel Phase 
+    # Correlation to focus more heavily on micro-textures and structural boundaries 
+    # where deepfake synthesis tools (GANs/Diffusion) most commonly produce phase artifacts.
+    b_hf = cv2.addWeighted(b, 1.2, cv2.GaussianBlur(b, (3, 3), 0), -0.2, 0)
+    g_hf = cv2.addWeighted(g, 1.2, cv2.GaussianBlur(g, (3, 3), 0), -0.2, 0)
+    r_hf = cv2.addWeighted(r, 1.2, cv2.GaussianBlur(r, (3, 3), 0), -0.2, 0)
+    
     # Extract phase for each
-    phase_b = extract_phase(b)
-    phase_g = extract_phase(g)
-    phase_r = extract_phase(r)
+    phase_b = extract_phase(b_hf)
+    phase_g = extract_phase(g_hf)
+    phase_r = extract_phase(r_hf)
     
     # Calculate phase differences
     diff_rg = phase_r - phase_g

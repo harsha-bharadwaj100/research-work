@@ -9,9 +9,15 @@ def extract_phase(channel):
 
 def calculate_icpc(image):
     b, g, r = cv2.split(image)
-    phase_b = extract_phase(b)
-    phase_g = extract_phase(g)
-    phase_r = extract_phase(r)
+    
+    # NOVELTY: High-Frequency Enhanced ICPC (HF-ICPC)
+    b_hf = cv2.addWeighted(b, 1.2, cv2.GaussianBlur(b, (3, 3), 0), -0.2, 0)
+    g_hf = cv2.addWeighted(g, 1.2, cv2.GaussianBlur(g, (3, 3), 0), -0.2, 0)
+    r_hf = cv2.addWeighted(r, 1.2, cv2.GaussianBlur(r, (3, 3), 0), -0.2, 0)
+
+    phase_b = extract_phase(b_hf)
+    phase_g = extract_phase(g_hf)
+    phase_r = extract_phase(r_hf)
     
     diff_rg = phase_r - phase_g
     diff_rb = phase_r - phase_b
@@ -22,11 +28,22 @@ def calculate_icpc(image):
     diff_gb = np.arctan2(np.sin(diff_gb), np.cos(diff_gb))
     return diff_rg, diff_rb, diff_gb
 
-def calculate_global_entropy(image_gray):
+def calculate_global_entropy(image_gray, alpha=2.0):
+    """
+    NOVELTY: Replaced standard Shannon Entropy with alpha-order Rényi Entropy.
+    Rényi entropy generalizes Shannon entropy and makes the metric slightly more 
+    sensitive to the probability collision of pixel intensities (alpha=2).
+    """
     hist = cv2.calcHist([image_gray], [0], None, [256], [0, 256])
-    hist = hist.ravel() / hist.sum()
-    logs = np.nan_to_num(np.log2(hist + 1e-7))
-    return -np.sum(hist * logs)
+    hist = hist.ravel() / (hist.sum() + 1e-7)
+    
+    if alpha == 1.0:
+        logs = np.nan_to_num(np.log2(hist + 1e-7))
+        return -np.sum(hist * logs)
+    else:
+        # Rényi Entropy of order alpha
+        power_sum = np.sum(hist ** alpha)
+        return (1 / (1 - alpha)) * np.log2(power_sum + 1e-7)
 
 def evaluate_image(filepath):
     img = cv2.imread(filepath)

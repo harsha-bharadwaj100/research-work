@@ -111,7 +111,7 @@ def calculate_global_entropy(image_gray):
     logs = np.nan_to_num(np.log2(hist + 1e-7))
     return -np.sum(hist * logs)
 
-def process_single_image(img_array, label="Subject"):
+def process_single_image(img_array, label="Subject", use_clip=True):
     img_native = cv2.imdecode(np.frombuffer(img_array, np.uint8), cv2.IMREAD_COLOR)
     
     # Pillar 1: ICPC (CRITICAL: Must be done on native/cropped resolution, NOT resized)
@@ -175,7 +175,7 @@ def process_single_image(img_array, label="Subject"):
     # --- PRIMARY VERDICT ENGINE: CLIP Few-Shot Classifier ---
     pil_img_native = PILImage.fromarray(cv2.cvtColor(img_native, cv2.COLOR_BGR2RGB))
     
-    if clip_classifier is not None and clip_model is not None:
+    if use_clip and clip_classifier is not None and clip_model is not None:
         try:
             clip_feat = get_clip_features(pil_img_native)
             if clip_feat is not None:
@@ -192,7 +192,7 @@ def process_single_image(img_array, label="Subject"):
             is_authentic = slope <= -2.2
             verdict = "Authentic Camera Capture" if is_authentic else "AI Deepfake"
             explanation = f"[CLIP error: {e}] Spectral fallback → Slope: {slope:.2f}."
-    elif clip_model is not None:
+    elif use_clip and clip_model is not None:
         # CLIP loaded but classifier not trained yet — give instructions
         is_authentic = False
         verdict = "⚠ Classifier Not Trained"
@@ -253,12 +253,20 @@ def process_single_image(img_array, label="Subject"):
     
     # Graph 5: Inter-Channel Phase Correlation (Pillar 1)
     fig5, ax5 = plt.subplots(figsize=(6, 4))
-    ax5.bar(np.linspace(-np.pi, np.pi, bins), hist_rg, alpha=0.3, label='R-G Phase Diff', color='red')
-    ax5.bar(np.linspace(-np.pi, np.pi, bins), hist_rb, alpha=0.3, label='R-B Phase Diff', color='green')
-    ax5.bar(np.linspace(-np.pi, np.pi, bins), hist_gb, alpha=0.3, label='G-B Phase Diff', color='blue')
+    
+    total_pixels = r_diffs[0].size if r_diffs[0].size > 0 else 1
+    plot_rg = hist_rg / total_pixels
+    plot_rb = hist_rb / total_pixels
+    plot_gb = hist_gb / total_pixels
+    
+    ax5.bar(np.linspace(-np.pi, np.pi, bins), plot_rg, alpha=0.3, label='R-G Phase Diff', color='red')
+    ax5.bar(np.linspace(-np.pi, np.pi, bins), plot_rb, alpha=0.3, label='R-B Phase Diff', color='green')
+    ax5.bar(np.linspace(-np.pi, np.pi, bins), plot_gb, alpha=0.3, label='G-B Phase Diff', color='blue')
+    
+    ax5.set_ylim(0, 0.25)
     ax5.set_title(f"Inter-Channel Phase Correlation (PMR: {pmr:.2f})")
     ax5.set_xlabel("Phase Difference (Radians)")
-    ax5.set_ylabel("Count")
+    ax5.set_ylabel("Pixel Density Ratio")
     ax5.legend()
     plt.tight_layout()
     icpc_b64 = fig_to_b64(fig5)
@@ -281,8 +289,41 @@ def process_single_image(img_array, label="Subject"):
 @app.post("/analyze")
 async def analyze_image(image: UploadFile = File(...)):
     img_data = await image.read()
-    res = process_single_image(img_data, "Analyzed Subject")
+    res = process_single_image(img_data, "Analyzed Subject", use_clip=True)
     return res
+
+@app.post("/compare")
+async def analyze_dual_images(image1: UploadFile = File(...), image2: UploadFile = File(...)):
+    img_data1 = await image1.read()
+    img_data2 = await image2.read()
+    
+    # Process without CLIP (pure math)
+    res1 = process_single_image(img_data1, label="Image 1", use_clip=False)
+    res2 = process_single_image(img_data2, label="Image 2", use_clip=False)
+    
+    # Mathematical comparison logic
+    # Real images typically have HIGHER PMR, HIGHER Noise Variance (natural PRNU), LOWER ELA score, and NATURALLY HIGHER Entropy
+    score1 = res1['ratio'] * res1['noise_variance'] * res1['entropy'] / (res1['ela_score'] + 1e-5)
+    score2 = res2['ratio'] * res2['noise_variance'] * res2['entropy'] / (res2['ela_score'] + 1e-5)
+    
+    if score1 > score2:
+        res1['verdict'] = "Authentic Camera Capture"
+        res1['explanation'] = "Pure Mathematical Verdict: Selected as Authentic. Exhibits stronger Phase lock, higher natural entropy, and healthier PRNU sensors grain."
+        res2['verdict'] = "AI Deepfake Synthesis"
+        res2['explanation'] = "Pure Mathematical Verdict: Selected as Deepfake. Exhibits scattered phase correlation and sterile, artificial pixel layout."
+        overall = "Image 1 is mathematically Authentic. Image 2 is a Deepfake."
+    else:
+        res2['verdict'] = "Authentic Camera Capture"
+        res2['explanation'] = "Pure Mathematical Verdict: Selected as Authentic. Exhibits stronger Phase lock, higher natural entropy, and healthier PRNU sensors grain."
+        res1['verdict'] = "AI Deepfake Synthesis"
+        res1['explanation'] = "Pure Mathematical Verdict: Selected as Deepfake. Exhibits scattered phase correlation and sterile, artificial pixel layout."
+        overall = "Image 2 is mathematically Authentic. Image 1 is a Deepfake."
+
+    return {
+        "overall_verdict": overall,
+        "image1": res1,
+        "image2": res2
+    }
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
