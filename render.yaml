@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: glassengine
+    runtime: docker
+    plan: free
+    dockerfile: ./Dockerfile
+    healthCheckPath: /docs
+    envVars:
+      - key: PORT
+        value: 8000

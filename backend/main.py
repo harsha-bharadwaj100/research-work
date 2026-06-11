@@ -7,6 +7,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import joblib
 
@@ -59,6 +60,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve React frontend static files
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="static")
 
 def extract_phase(channel):
     f_transform = np.fft.fft2(channel)
